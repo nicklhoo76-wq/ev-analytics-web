@@ -1,0 +1,47 @@
+{
+  "origins": [
+    "2023-04-25T00:00:00+08:00",
+    "2023-04-27T12:00:00+08:00",
+    "2023-04-29T23:00:00+08:00"
+  ],
+  "deliveredStations": 20,
+  "displayedStations": [
+    "BJS-S0001",
+    "BJS-S0002",
+    "BJS-S0003",
+    "BJS-S0004",
+    "BJS-S0005",
+    "BJS-S0006",
+    "BJS-S0007",
+    "BJS-S0008"
+  ],
+  "validatedPredictionRows": 1440,
+  "displayedPredictionRows": 576,
+  "removedExactTelemetryDuplicates": 117,
+  "predictionSources": [
+    {
+      "file": "成员3交付成员4\\member3_交付成员4_字段说明与预测_20260915\\member4\\predictions_asof_0_20230425000000.parquet\\part-00000-7ccb2e9f-bdc5-437a-8327-70c782c2525b-c000.snappy.parquet",
+      "sha256": "0375e3db72c92cd2709bbb4463ee5ea8ef9d1b5968ae9dc8e5d0e3fef66384ce"
+    },
+    {
+      "file": "成员3交付成员4\\member3_交付成员4_字段说明与预测_20260915\\member4\\predictions_asof_1_20230427120000.parquet\\part-00000-1cb50b97-31de-4c38-be4d-91c000607d57-c000.snappy.parquet",
+      "sha256": "71aec867a178aa6b0b5ea29bd272e23f022eac472a73e612d8f6d7420cc1d3d8"
+    },
+    {
+      "file": "成员3交付成员4\\member3_交付成员4_字段说明与预测_20260915\\member4\\predictions_asof_2_20230429230000.parquet\\part-00000-308db35d-906c-4a15-a490-abda2ae13c97-c000.snappy.parquet",
+      "sha256": "64d529f0aa22490473ff002e657c83e889e5f4bf04f985d7131be4206d3bdfa0"
+    }
+  ],
+  "historicalSource": "phase2-data-generator\\output\\beijing-development-seed-20260914",
+  "historicalMethod": "local small-data telemetry interval overlap + state snapshot/event reconstruction; not published ADS",
+  "weatherModel": "E1 without_weather; E2 evaluation only",
+  "checks": [
+    "origin >= train cutoff",
+    "UTC physical timestamp converted to Beijing",
+    "24 unique consecutive hours",
+    "free_piles_time == interval_end",
+    "load/free capacity constraints",
+    "capacity_ratio matches same-batch pile dimension",
+    "state conservation"
+  ]
+}

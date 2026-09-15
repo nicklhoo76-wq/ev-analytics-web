@@ -1,0 +1,53 @@
+{
+  "reports": [
+    {
+      "role": "admin",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "height": 1080,
+      "scrollHeight": 1080
+    },
+    {
+      "role": "admin",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "height": 768,
+      "scrollHeight": 768
+    },
+    {
+      "role": "admin",
+      "width": 430,
+      "scrollWidth": 430,
+      "height": 932,
+      "scrollHeight": 2944
+    },
+    {
+      "role": "user",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "height": 1080,
+      "scrollHeight": 1080
+    },
+    {
+      "role": "user",
+      "width": 1366,
+      "scrollWidth": 1366,
+      "height": 768,
+      "scrollHeight": 768
+    },
+    {
+      "role": "user",
+      "width": 430,
+      "scrollWidth": 430,
+      "height": 932,
+      "scrollHeight": 2133
+    }
+  ],
+  "errors": [],
+  "stationSwitch": true,
+  "orders": true,
+  "alerts": true,
+  "heatTooltip": true,
+  "chargingHover": true,
+  "missingPrediction": true
+}

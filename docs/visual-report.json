@@ -1,0 +1,29 @@
+{
+  "report": [
+    {
+      "role": "admin",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "height": 1080,
+      "charts": 6
+    },
+    {
+      "role": "user",
+      "width": 1920,
+      "scrollWidth": 1920,
+      "height": 1080,
+      "charts": 6
+    },
+    {
+      "width": 1366,
+      "scrollWidth": 1366
+    },
+    {
+      "width": 430,
+      "scrollWidth": 430
+    }
+  ],
+  "errors": [],
+  "stationFilter": true,
+  "drawer": true
+}

@@ -1,0 +1,102 @@
+[
+  {
+    "station_id": "BJS-S0001",
+    "longitude": 116.291016,
+    "latitude": 40.007325
+  },
+  {
+    "station_id": "BJS-S0002",
+    "longitude": 116.471666,
+    "latitude": 39.914386
+  },
+  {
+    "station_id": "BJS-S0003",
+    "longitude": 116.303047,
+    "latitude": 39.856844
+  },
+  {
+    "station_id": "BJS-S0004",
+    "longitude": 116.218736,
+    "latitude": 39.923426
+  },
+  {
+    "station_id": "BJS-S0005",
+    "longitude": 116.128889,
+    "latitude": 39.747718
+  },
+  {
+    "station_id": "BJS-S0006",
+    "longitude": 116.35797,
+    "latitude": 39.713653
+  },
+  {
+    "station_id": "BJS-S0007",
+    "longitude": 116.675547,
+    "latitude": 39.924261
+  },
+  {
+    "station_id": "BJS-S0008",
+    "longitude": 116.648472,
+    "latitude": 40.118221
+  },
+  {
+    "station_id": "BJS-S0009",
+    "longitude": 116.22841,
+    "latitude": 40.233421
+  },
+  {
+    "station_id": "BJS-S0010",
+    "longitude": 116.396084,
+    "latitude": 39.925126
+  },
+  {
+    "station_id": "BJS-S0011",
+    "longitude": 116.301033,
+    "latitude": 40.006926
+  },
+  {
+    "station_id": "BJS-S0012",
+    "longitude": 116.467602,
+    "latitude": 39.927109
+  },
+  {
+    "station_id": "BJS-S0013",
+    "longitude": 116.28607,
+    "latitude": 39.864251
+  },
+  {
+    "station_id": "BJS-S0014",
+    "longitude": 116.218711,
+    "latitude": 39.903421
+  },
+  {
+    "station_id": "BJS-S0015",
+    "longitude": 116.139108,
+    "latitude": 39.757799
+  },
+  {
+    "station_id": "BJS-S0016",
+    "longitude": 116.341479,
+    "latitude": 39.736741
+  },
+  {
+    "station_id": "BJS-S0017",
+    "longitude": 116.649225,
+    "latitude": 39.898371
+  },
+  {
+    "station_id": "BJS-S0018",
+    "longitude": 116.634539,
+    "latitude": 40.138092
+  },
+  {
+    "station_id": "BJS-S0019",
+    "longitude": 116.209024,
+    "latitude": 40.202873
+  },
+  {
+    "station_id": "BJS-S0020",
+    "longitude": 116.425418,
+    "latitude": 39.919427
+  }
+]

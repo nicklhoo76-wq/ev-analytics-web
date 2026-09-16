@@ -109,10 +109,12 @@ cd member4-api
 
 ```
 cd ev-analytics-web
-node node_modules\vite\bin\vite.js --port 4173 --host 127.0.0.1
+pnpm.cmd dev -- --port 4173 --host 127.0.0.1
 ```
-- 环境变量在 `.env.local`：`VITE_DATA_MODE=api`、`VITE_API_BASE=/api/v1`、`VITE_API_PROXY=http://127.0.0.1:5000`
-- 不要用 `pnpm dev`（工作区配置会报 `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`），也不要用 `npx vite`（会去装另一个大版本）
+- 默认环境变量在 `.env.local`：`VITE_DATA_MODE=replay`、`VITE_API_BASE=/api/v1`、`VITE_API_PROXY=http://127.0.0.1:5000`
+- 当前前端默认读取本地回放数据 `src/data/member4-replay.json`，数据来源为父目录 `用户4交付\result_store\beijing-gb-v2-seed-20260916\batches\gb_v2b_20260916_1200_ads_v2`，因此不依赖 Flask 接口也能展示当前批次结果
+- 如需重新生成本地回放数据，执行 `node scripts/build-member4-replay.mjs`
+- 如需切回接口联调，将 `.env.local` 的 `VITE_DATA_MODE` 改为 `api`，并先按 4.2 启动 `member4-api`
 
 ### 4.4 展示页面
 
@@ -197,7 +199,7 @@ python 成员4交付/tools/forecast_shape.py      # 预测曲线形状对比
 |---|---|
 | 接口 5000 无法连接，或页面数据是旧的 | 可能残留多个旧进程同时 LISTENING。`Get-NetTCPConnection -LocalPort 5000 -State Listen \| Select -ExpandProperty OwningProcess -Unique` 逐个 `Stop-Process -Id <id> -Force`，再删除 `analytics.db` 重启 |
 | 首次启动接口响应很慢 | 正在重建 SQLite 索引（210 MB JSONL），等 1–2 分钟 |
-| `pnpm dev` 报 `Command "dev" not found` | 工作区配置导致，改用 4.3 的命令 |
+| 页面无数据，但本地批次文件存在 | 确认 `.env.local` 为 `VITE_DATA_MODE=replay`，并重新启动 4.3 的前端服务 |
 | 页面数字停在 0 | 动画计数器在后台标签页不推进；接口数据正常，切到前台即可（已加 visibilityState 兜底） |
 | Spark 报 `file:/...` 找不到路径 | 多节点 executor 不能读 master 本地文件；模型与预测 Parquet 必须写 HDFS |
 | 训练退化成本地模式 | 必须 `--master yarn` 提交，检查日志里的 `ML_APPLICATION_ID` 是否为 `application_*` |

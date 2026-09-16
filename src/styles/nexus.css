@@ -560,3 +560,31 @@ body:has(.nexus.theme-dark){background:#080f20}
  .nexus .map-direction{bottom:7px;right:10px}
  .nexus.theme-dark .map-direction{bottom:7px;right:10px}
 }
+
+.nexus:not(.passenger) .visual-core .core-top{justify-content:flex-start}
+.nexus:not(.passenger) .visual-core .core-top>span:last-child{
+ position:absolute;
+ left:50%;
+ top:9px;
+ transform:translateX(-50%);
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ gap:12px;
+ font-size:12px;
+ font-weight:650;
+ white-space:nowrap;
+ max-width:52%;
+ overflow:hidden;
+ text-overflow:ellipsis;
+}
+.nexus.theme-light:not(.passenger) .visual-core .core-top>span:last-child{color:#587087}
+.nexus.theme-dark:not(.passenger) .visual-core .core-top>span:last-child{color:#9fb7d5}
+.nexus.theme-dark .marker-label{left:48px}
+.nexus.theme-dark .station-marker.left .marker-label,.nexus.theme-dark .station-marker.edgeRight .marker-label{left:auto;right:44px}
+.nexus.theme-dark .station-marker.edgeLeft .marker-label{left:44px;right:auto}
+.nexus.theme-dark .station-marker.originZone .marker-label{left:38px}
+@media(max-width:760px){
+ .nexus:not(.passenger) .visual-core .core-top{padding-bottom:24px}
+ .nexus:not(.passenger) .visual-core .core-top>span:last-child{top:31px;font-size:11px;max-width:78%}
+}

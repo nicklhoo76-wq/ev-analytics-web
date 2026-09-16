@@ -98,7 +98,7 @@ const fullTime=(value:string)=>{const d=new Date(value);return Number.isNaN(d.ge
   <div v-if="error" class="error-message" role="alert">{{error}}<button @click="load">重试</button></div>
   <section class="numbers" :class="{'four-metrics':!admin}" aria-label="核心指标"><article v-for="(m,i) in metrics" :key="m.label" :style="{'--accent':palette[i%palette.length]}"><span>{{m.label}}</span><div><strong><AnimatedValue :value="m.value"/></strong><em>{{m.unit}}</em></div><small><i></i>{{m.sub}}</small></article></section>
   <main class="command-grid" :aria-busy="loading">
-   <OrderPanel v-if="admin" :summary="current?.orders[orderWindow]?.summary||null" :failed="!current||current.orders[orderWindow]?.failed===true" :window-hours="orderWindow" @window="orderWindow=$event"/>
+   <OrderPanel v-if="admin" :summary="current?.orders[orderWindow]?.summary||null" :failed="!current||current.orders[orderWindow]?.failed===true" :window-hours="orderWindow" :theme="theme" @window="orderWindow=$event"/>
    <section class="visual-core">
     <div class="core-top"><span><Activity :size="14"/>{{admin?'北京 · 站点空间分布':'未来 · 充电窗口'}}</span><span>{{selected?stationLabel(selected):'全网站点'}}<button v-if="selected" class="back-global" @click="select('')">返回全网</button></span></div>
     <StationMap v-if="admin" :stations="stations" :selected-id="store.state.stationId" :mock="store.dataMode==='mock'" :theme="theme" @select="select"/>

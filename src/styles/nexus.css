@@ -157,6 +157,8 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
  box-shadow:var(--shadow-soft);
 }
 .core-top{background:linear-gradient(180deg,rgba(255,255,255,.85),rgba(255,255,255,0));border-bottom:1px solid rgba(232,239,244,.7)}
+.nexus.theme-light .visual-core .core-top>span:last-child{gap:14px}
+.nexus.theme-light .visual-core .back-global{margin-left:4px}
 .core-top button,.back-global,.text-action{color:#158E91}
 .station-map{border-radius:10px;background:linear-gradient(180deg,#fff,#F7FAFC);height:calc(100% - 24px);padding:10px 0 14px}
 .station-marker{z-index:3}
@@ -214,6 +216,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
  box-shadow:0 0 0 7px rgba(113,103,232,.15),0 8px 22px rgba(113,103,232,.22);
 }
 .marker-label{
+ opacity:0;
+ visibility:hidden;
+ pointer-events:none;
  color:var(--text-primary);
  background:rgba(255,255,255,.9);
  border:1px solid rgba(220,231,239,.9);
@@ -222,7 +227,9 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
  max-width:112px;
  overflow:hidden;
  text-overflow:ellipsis;
+ transition:opacity .16s ease,visibility .16s ease;
 }
+.station-marker:hover .marker-label,.station-marker:focus-visible .marker-label{opacity:1;visibility:visible}
 .marker-label small{color:var(--text-secondary)}
 .station-marker.bottom .marker-label{top:auto;bottom:34px}
 .station-marker.top .marker-label{top:32px}
@@ -230,7 +237,7 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
 .station-marker.edgeLeft .marker-label{left:34px;right:auto}
 .station-marker.originZone .marker-label{top:auto;bottom:38px;left:30px}
 .station-marker.middle.bottom .marker-label{top:auto;bottom:34px;left:50%;right:auto;transform:translateX(-50%)}
-.station-marker.active .marker-label{
+.station-marker:hover .marker-label,.station-marker:focus-visible .marker-label{
  color:var(--text-primary);
  background:#fff;
  border-color:rgba(25,199,201,.45);
@@ -518,13 +525,21 @@ body:has(.nexus.theme-dark){background:#080f20}
 .nexus.theme-dark *::-webkit-scrollbar-track{background:#101c31}
 .nexus.theme-dark *::-webkit-scrollbar-thumb{background:#36516b;border:2px solid #101c31}
 @media(min-width:1251px){
- .nexus.theme-dark:not(.passenger) .command-grid{grid-template-rows:minmax(0,1.24fr) minmax(0,1.08fr) minmax(0,.93fr)}
- .nexus.theme-dark:not(.passenger) .bottom-availability .panel-title{margin-bottom:7px}
- .nexus.theme-dark:not(.passenger) .bottom-availability .network-status{display:flex;margin-bottom:10px}
+ .nexus.theme-dark:not(.passenger) .command-grid{grid-template-rows:minmax(0,1.18fr) minmax(0,1.16fr) minmax(0,.78fr)}
+ .nexus.theme-dark:not(.passenger) .heat-panel .base-chart{min-height:0;flex:1.12}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .panel-title{margin-bottom:4px}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .network-status{display:flex;margin-bottom:4px}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .availability-pager{margin:-5px 0 4px}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .station-status-grid.paged>button{padding:7px 10px}
+ .nexus.theme-dark .availability-pager button{background:#15233880;border-color:#31435e;color:#8fe7ee;box-shadow:none}
+ .nexus.theme-dark .availability-pager button:hover{background:#24536d;border-color:#426e8970;color:#fff}
 }
 @media(min-width:1251px) and (max-height:850px){
- .nexus.theme-dark:not(.passenger) .command-grid{grid-template-rows:minmax(0,1.24fr) minmax(0,1.08fr) minmax(0,.93fr)}
- .nexus.theme-dark:not(.passenger) .bottom-availability .network-status{display:flex}
+ .nexus.theme-dark:not(.passenger) .command-grid{grid-template-rows:minmax(0,1.12fr) minmax(0,1.18fr) minmax(0,.71fr)}
+ .nexus.theme-dark:not(.passenger) .heat-panel .panel-title{margin-bottom:2px}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .network-status{display:none}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .station-status-grid.paged>button{padding:5px 7px}
+ .nexus.theme-dark:not(.passenger) .bottom-availability .availability-pager{margin:-4px 0 3px}
 }
 
 @media(max-width:1250px){

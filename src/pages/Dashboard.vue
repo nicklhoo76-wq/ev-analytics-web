@@ -100,7 +100,7 @@ const fullTime=(value:string)=>{const d=new Date(value);return Number.isNaN(d.ge
   <main class="command-grid" :aria-busy="loading">
    <OrderPanel v-if="admin" :summary="current?.orders[orderWindow]?.summary||null" :failed="!current||current.orders[orderWindow]?.failed===true" :window-hours="orderWindow" :theme="theme" @window="orderWindow=$event"/>
    <section class="visual-core">
-    <div class="core-top"><span><Activity :size="14"/>{{admin?'北京 · 站点空间分布':'未来 · 充电窗口'}}</span><span>{{selected?stationLabel(selected):'全网站点'}}<button v-if="selected" class="back-global" @click="select('')">返回全网</button></span></div>
+    <div class="core-top"><span><Activity :size="14"/>{{admin?'北京 · 站点空间分布':'未来 · 充电窗口'}}</span><span>{{selected?stationLabel(selected):'全网站点'}}</span><button v-if="selected" class="back-global" @click="select('')">返回全网</button></div>
     <StationMap v-if="admin" :stations="stations" :selected-id="store.state.stationId" :mock="store.dataMode==='mock'" :theme="theme" @select="select"/>
     <ChargingWindow v-else :prediction="prediction" :flat="forecastFlat"/>
    </section>

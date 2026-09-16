@@ -562,7 +562,7 @@ body:has(.nexus.theme-dark){background:#080f20}
 }
 
 .nexus:not(.passenger) .visual-core .core-top{justify-content:flex-start}
-.nexus:not(.passenger) .visual-core .core-top>span:last-child{
+.nexus:not(.passenger) .visual-core .core-top>span:nth-of-type(2){
  position:absolute;
  left:50%;
  top:9px;
@@ -578,13 +578,26 @@ body:has(.nexus.theme-dark){background:#080f20}
  overflow:hidden;
  text-overflow:ellipsis;
 }
-.nexus.theme-light:not(.passenger) .visual-core .core-top>span:last-child{color:#587087}
-.nexus.theme-dark:not(.passenger) .visual-core .core-top>span:last-child{color:#9fb7d5}
+.nexus.theme-light:not(.passenger) .visual-core .core-top>span:nth-of-type(2){color:#587087}
+.nexus.theme-dark:not(.passenger) .visual-core .core-top>span:nth-of-type(2){color:#9fb7d5}
+.nexus:not(.passenger) .visual-core .back-global{
+ position:absolute;
+ top:8px;
+ right:12px;
+ margin-left:0;
+ z-index:3;
+}
+.nexus.theme-dark .marker-code{
+ color:#071728;
+ font-weight:800;
+ text-shadow:0 1px 0 rgba(255,255,255,.35);
+}
 .nexus.theme-dark .marker-label{left:48px}
 .nexus.theme-dark .station-marker.left .marker-label,.nexus.theme-dark .station-marker.edgeRight .marker-label{left:auto;right:44px}
 .nexus.theme-dark .station-marker.edgeLeft .marker-label{left:44px;right:auto}
 .nexus.theme-dark .station-marker.originZone .marker-label{left:38px}
 @media(max-width:760px){
  .nexus:not(.passenger) .visual-core .core-top{padding-bottom:24px}
- .nexus:not(.passenger) .visual-core .core-top>span:last-child{top:31px;font-size:11px;max-width:78%}
+ .nexus:not(.passenger) .visual-core .core-top>span:nth-of-type(2){top:31px;font-size:11px;max-width:78%}
+ .nexus:not(.passenger) .visual-core .back-global{top:7px;right:8px}
 }

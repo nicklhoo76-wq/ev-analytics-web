@@ -38,8 +38,8 @@ const featured = computed(() => nodes.value.find(s => s.stationId === hoveredId.
       @click="emit('select',s.stationId)"
     >
       <span class="marker-dot"></span>
-      <span v-if="theme==='light'" class="marker-code">{{s.stationId.slice(-3)}}</span>
-      <span v-else class="marker-label">{{s.district}}<small>{{s.stationId.slice(-3)}}站 · {{s.idlePiles}}空闲</small></span>
+      <span class="marker-code">{{s.stationId.slice(-3)}}</span>
+      <span v-if="theme!=='light'" class="marker-label">{{s.district}}<small>{{s.stationId.slice(-3)}}站 · {{s.idlePiles}}空闲</small></span>
     </button>
     <aside v-if="theme==='light'&&featured" class="map-focus-card" aria-live="polite">
       <b>{{featured.district}}</b>

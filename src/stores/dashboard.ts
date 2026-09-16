@@ -1,11 +1,13 @@
 import { computed, reactive } from 'vue'
 import type { MockScenario } from '@/types/api'
-import replay from '@/data/member3-replay.json'
+import replay from '@/data/member4-replay.json'
+
+const replayInfo = replay as { datasetId: string; batchId?: string; availableAsOf: string[] }
 
 const state = reactive({
-  datasetId: import.meta.env.VITE_DATA_MODE==='api'?'':'beijing-development-seed-20260914',
-  batchId: import.meta.env.VITE_DATA_MODE==='api'?'':'beijing-development-seed-20260914',
-  asOf: import.meta.env.VITE_DATA_MODE==='api'?'':import.meta.env.VITE_DATA_MODE==='mock'?'2023-04-09T20:00:00+08:00':replay.availableAsOf[1]!,
+  datasetId: import.meta.env.VITE_DATA_MODE==='api'?'':replayInfo.datasetId,
+  batchId: import.meta.env.VITE_DATA_MODE==='api'?'':(replayInfo.batchId || replayInfo.datasetId),
+  asOf: import.meta.env.VITE_DATA_MODE==='api'?'':import.meta.env.VITE_DATA_MODE==='mock'?'2023-04-09T20:00:00+08:00':replayInfo.availableAsOf[1]!,
   stationId: '',
   scenario: 'normal' as MockScenario,
 })

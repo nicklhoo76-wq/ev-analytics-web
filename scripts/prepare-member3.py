@@ -79,7 +79,7 @@ assert len(forecasts) == 3
 
 # Energy is additive across interval overlaps. Exact duplicate telemetry is counted once.
 hour_energy = defaultdict(float)
-seen, duplicates = set(), 0
+seen, duplicates, telemetry_rows = set(), 0, {}
 for r in read('fact_pile_telemetry'):
     key = (r['pile_id'], r['interval_start'], r['interval_end'])
     canonical = json.dumps(r, sort_keys=True)
@@ -87,8 +87,6 @@ for r in read('fact_pile_telemetry'):
         assert telemetry_rows[key] == canonical, 'Conflicting telemetry; requires DWD output'
         duplicates += 1
         continue
-    if not seen:
-        telemetry_rows = {}
     seen.add(key)
     telemetry_rows[key] = canonical
     start, end = dt(r['interval_start']), dt(r['interval_end'])

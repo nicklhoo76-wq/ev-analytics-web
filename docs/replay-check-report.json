@@ -1,0 +1,35 @@
+{
+  "results": [
+    {
+      "asOf": "2023-04-25T00:00:00+08:00",
+      "stations": 8,
+      "points": 24,
+      "orderCount": 15,
+      "totalPiles": 17,
+      "capacityKw": 1004,
+      "cityEqualsStationSum": true,
+      "unchangedPredictionValues": true
+    },
+    {
+      "asOf": "2023-04-27T12:00:00+08:00",
+      "stations": 8,
+      "points": 24,
+      "orderCount": 13,
+      "totalPiles": 17,
+      "capacityKw": 1004,
+      "cityEqualsStationSum": true,
+      "unchangedPredictionValues": true
+    },
+    {
+      "asOf": "2023-04-29T23:00:00+08:00",
+      "stations": 8,
+      "points": 24,
+      "orderCount": 17,
+      "totalPiles": 17,
+      "capacityKw": 1004,
+      "cityEqualsStationSum": true,
+      "unchangedPredictionValues": true
+    }
+  ],
+  "errors": []
+}

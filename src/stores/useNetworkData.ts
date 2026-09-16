@@ -22,6 +22,8 @@ export function useNetworkData(){
    }))
    if(token!==sequence)return
    snapshot.value={context,stations,bundles:Object.fromEntries(entries)}
+   store.setPublication(context.meta.datasetId,context.meta.batchId)
+   if(!time && context.meta.asOf){store.setAsOf(context.meta.asOf);return}
    if(store.state.stationId && !snapshot.value.bundles[store.state.stationId])store.setStation('')
   }catch{if(token===sequence)error.value='暂时无法更新数据，当前保留上次成功结果。'}
   finally{if(token===sequence)loading.value=false}

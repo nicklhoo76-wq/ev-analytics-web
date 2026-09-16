@@ -9,7 +9,7 @@ async function run(){
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const out=path.join(__dirname,'screenshots');fs.mkdirSync(out,{recursive:true});
  const ready=()=>page.waitForFunction(()=>document.querySelector('main')?.getAttribute('aria-busy')==='false');
- await page.goto('http://127.0.0.1:4174/admin/overview');await ready();
+ await page.goto('http://127.0.0.1:4175/admin/overview');await ready();
  assert.equal(await page.locator('.station-status-grid>button').count(),8);
  const chips=page.locator('.station-switcher>button');
  for(const index of [1,3,2,2])await chips.nth(index).click();
@@ -51,7 +51,7 @@ async function run(){
  const expectedThreshold=await page.evaluate(async()=>{const {api}=await import('/src/api/index.ts');const {useDashboardStore}=await import('/src/stores/dashboard.ts');return ((await api.getOverview(useDashboardStore().state.asOf)).installedCapacityKw*.8).toFixed(1)});
  const reports=[];
  for(const role of ['admin','user']){
-  await page.goto(`http://127.0.0.1:4174/${role}/overview`);await ready();
+  await page.goto(`http://127.0.0.1:4175/${role}/overview`);await ready();
   assert.equal(await page.locator('.station-status-grid>button').count(),8);
   if(role==='user'){
    assert.ok(!/负荷|kW|充电位状态/.test(await page.locator('body').innerText()));

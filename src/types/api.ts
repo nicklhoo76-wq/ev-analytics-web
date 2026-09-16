@@ -120,6 +120,7 @@ export interface WeatherImpactGroup {
 }
 
 export interface ModelMetric {
+  experiment: 'E0' | 'E1' | 'E2'
   modelVersion: string
   targetName: 'load_kw' | 'idle_pile_count'
   horizonHours: 1 | 6 | 24
@@ -131,6 +132,9 @@ export interface ModelMetric {
   baselineMae: number
   withWeather: boolean
   testRange: string
+  metricUnit: string
+  perHorizon: Array<{ h: number; n: number; mae: number; rmse: number }>
+  perStation: Array<{ stationId: string; n: number; mae: number; rmse: number }>
 }
 
 export interface PipelineStage {

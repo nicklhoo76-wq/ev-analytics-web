@@ -16,6 +16,11 @@ export interface DataMeta {
   qualityStatus: QualityStatus
   coverageRatio: number
   isFixture: boolean
+  stationCount?: number
+  predictionAvailable?: boolean
+  modelMetricsAvailable?: boolean
+  auditStatus?: string
+  auditedAt?: string
 }
 
 export interface DashboardContext {
@@ -23,9 +28,11 @@ export interface DashboardContext {
   datasetName: string
   availableRange: { start: string; end: string }
   availableAsOf: string[]
+  defaultAsOf?: string
+  stationCount?: number
   predictionAvailable: boolean
   modelMetricsAvailable: boolean
-  weatherStatus: 'synthetic' | 'unavailable'
+  weatherStatus: 'synthetic' | 'history_only_no_forecast_archive' | 'unavailable'
 }
 
 export interface OverviewData {
@@ -137,6 +144,41 @@ export interface ModelMetric {
   perStation: Array<{ stationId: string; n: number; mae: number; rmse: number }>
 }
 
+export interface Score { n: number; mae: number; rmse: number }
+
+export interface ModelEvaluationPayload {
+  items: ModelMetric[]
+  datasetId: string
+  mlRunId: string
+  sparkVersion: string
+  featureVersion: string
+  // 网关会将响应键驼峰化，这里必须用驼峰字段名，否则渲染期取到 undefined
+  split: { valStart: string; testStart: string; dataEndExclusive: string }
+  testSampleCount: number
+  constraints: { loadClipTriggers: number; freeClipTriggers: number; note: string }
+  comparison: Record<'load' | 'free', {
+    model: Score
+    baselinePrevDay: Score
+    commonSampleCount: number
+    sameSample: boolean
+    perHorizon: Array<{ h: number; n: number; mae: number; rmse: number }>
+    perStation: Array<{ stationId: string; n: number; mae: number; rmse: number }>
+  }>
+  weatherExperiment: {
+    status: string
+    commonSampleCount: number
+    coverageRatio: number
+    coveredHorizons: number[]
+    totalHorizons: number
+    load: Score
+    free: Score
+    e1OnCommon: Record<'load' | 'free', { model: Score }>
+    note: string
+  }
+  evaluationNote: string
+  meta: DataMeta
+}
+
 export interface PipelineStage {
   name: 'ODS' | 'DWD' | 'DWS' | 'MLlib' | 'ADS' | 'Published'
   status: 'complete' | 'waiting' | 'failed' | 'unknown'
@@ -188,6 +230,6 @@ export interface DashboardGateway {
   getPrediction(hours: 1 | 6 | 24, asOf: string, stationId?: string): Promise<PredictionData | null>
   getWeather(asOf: string): Promise<WeatherPoint[]>
   getWeatherImpact(): Promise<WeatherImpactGroup[]>
-  getModelMetrics(): Promise<ModelMetric[]>
+  getModelMetrics(): Promise<ModelEvaluationPayload>
   getPipeline(): Promise<PipelineData>
 }

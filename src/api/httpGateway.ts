@@ -52,7 +52,7 @@ export const httpGateway: DashboardGateway = {
   getWeatherImpact: () => request('/analytics/weather-impact', { ...common(), group_by: 'temperature_band' }),
   async getModelMetrics() {
     const data = await request<any>('/models/evaluation', common())
-    return data.items || data.metrics || (Array.isArray(data) ? data : [])
+    return { ...data, items: data.items || data.metrics || (Array.isArray(data) ? data : []) }
   },
   getPipeline: () => request('/pipeline/latest', common()),
 }

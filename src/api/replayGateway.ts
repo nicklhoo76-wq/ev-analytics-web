@@ -68,6 +68,6 @@ export const replayGateway:DashboardGateway={
   },
   async getWeather(){return []},
   async getWeatherImpact(){return []},
-  async getModelMetrics(){return []},
+  async getModelMetrics(){throw new Error('MODEL_METRICS_NOT_PUBLISHED')},
   async getPipeline(){throw new Error('PIPELINE_NOT_PUBLISHED')},
 }

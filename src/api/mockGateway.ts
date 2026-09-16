@@ -100,8 +100,8 @@ export const mockGateway: DashboardGateway = {
     return weatherImpactFixture
   },
   async getModelMetrics() {
-    await delay()
-    return modelMetricsFixture
+    // 模拟模式不伪造训练指标：正式指标只在 api 模式由发布产物提供
+    throw new Error('MODEL_METRICS_NOT_PUBLISHED')
   },
   async getPipeline() {
     await delay()

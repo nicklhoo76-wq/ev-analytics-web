@@ -11,7 +11,7 @@ import OrderPanel from '@/components/OrderPanel.vue'
 import AnimatedValue from '@/components/AnimatedValue.vue'
 import { useDashboardStore } from '@/stores/dashboard'
 import { useNetworkData } from '@/stores/useNetworkData'
-import { bars, freeComparison, heat, hour, palette, trend } from '@/lib/neonCharts'
+import { bars, freeComparison, heat, hour, palette, stationAxisLabel, trend } from '@/lib/neonCharts'
 import { buildAlerts } from '@/lib/operations'
 import type { PredictionData, StationStatus } from '@/types/api'
 
@@ -29,22 +29,26 @@ const scope=computed(()=>selected.value?[selected.value]:stations.value)
 const sum=(key:'idlePiles'|'usingPiles'|'reservedPiles'|'faultPiles'|'unknownPiles'|'pileTotal'|'loadKw'|'installedCapacityKw')=>scope.value.reduce((a,s)=>a+s[key],0)
 const capacity=computed(()=>sum('installedCapacityKw')),loadKw=computed(()=>sum('loadKw')),total=computed(()=>sum('pileTotal')),idle=computed(()=>sum('idlePiles'))
 const useRate=computed(()=>total.value?Math.round(sum('usingPiles')/total.value*100):0)
-const stationLabel=(s:StationStatus)=>`${s.district} · ${s.stationId.slice(-3)}站`
+const stationLabel=(s:StationStatus)=>`${s.stationId.slice(-3)}站 · ${s.district.trim()}`
 const select=(id:string)=>store.setStation(id)
 const ranked=computed(()=>[...stations.value].sort((a,b)=>admin.value?b.loadKw-a.loadKw:b.idlePiles/Math.max(1,b.pileTotal)-a.idlePiles/Math.max(1,a.pileTotal)))
 const best=computed(()=>prediction.value?.points.filter(p=>p.predictedFreePiles!==null).reduce<PredictionData['points'][number]|null>((a,p)=>!a||p.predictedFreePiles!>a.predictedFreePiles!?p:a,null))
 const peak=computed(()=>prediction.value?.points.some(p=>p.predictedLoadKw!==null)?Math.max(...prediction.value.points.map(p=>p.predictedLoadKw??0)):null)
 const recommendations=computed(()=>[...(prediction.value?.points||[])].filter(p=>p.predictedFreePiles!==null).sort((a,b)=>b.predictedFreePiles!-a.predictedFreePiles!).slice(0,4))
+// 预测空闲曲线几乎不动时，"推荐时点"没有区分度，必须如实说明而不是给出任意排名
+const freeAmplitude=computed(()=>{const values=(prediction.value?.points||[]).map(p=>p.predictedFreePiles).filter((v):v is number=>v!==null);return values.length?Math.max(...values)-Math.min(...values):0})
+const forecastFlat=computed(()=>(prediction.value?.points.length||0)>1&&freeAmplitude.value<2)
+const bestLabel=computed(()=>forecastFlat.value?'多个时点并列':(best.value?hour(best.value.intervalEnd):'—'))
 const metrics=computed(()=>admin.value?[
  {label:'覆盖站点',value:scope.value.length,unit:'座',sub:`${total.value} 个充电位`},
- {label:store.dataMode==='replay'?'最近小时负荷':'当前负荷',value:loadKw.value.toFixed(1),unit:'kW',sub:`装机 ${capacity.value} kW`},
+ {label:store.dataMode==='mock'?'当前负荷':'最近完整小时负荷',value:loadKw.value.toFixed(1),unit:'kW',sub:`装机 ${capacity.value} kW`},
  {label:'今日充电量',value:overview.value?.todayEnergyKwh?.toFixed(1)??'—',unit:'kWh',sub:'截至所选时点'},
  {label:'当前空闲',value:idle.value,unit:'个',sub:`${useRate.value}% 正在充电`},
  {label:'今日净营收',value:overview.value?.todayNetRevenueYuan?.toFixed(1)??'—',unit:'元',sub:'当日净额'},
 ]:[
  {label:'可用充电位',value:idle.value,unit:'个',sub:`共 ${total.value} 个充电位`},
  {label:'有空闲位的站点',value:scope.value.filter(s=>s.idlePiles>0).length,unit:'座',sub:`覆盖 ${scope.value.length} 座站点`},
- {label:'推荐充电时点',value:best.value?hour(best.value.intervalEnd):'—',unit:'',sub:'预计空闲数量最多'},
+ {label:'推荐充电时点',value:bestLabel.value,unit:'',sub:forecastFlat.value?`各时点预计空闲差异不足 2 个（${freeAmplitude.value} 个）`:'预计空闲数量最多'},
  {label:'预计空闲峰值',value:best.value?.predictedFreePiles??'—',unit:'个',sub:`未来 ${horizon.value} 小时`},
 ])
 let savedThreshold=80
@@ -56,11 +60,17 @@ const forecasts=computed(()=>Object.fromEntries(stations.value.map(s=>{const p=s
 const alerts=computed(()=>buildAlerts(scope.value,forecasts.value,threshold.value))
 const forecastCoverage=computed(()=>scope.value.filter(s=>forecasts.value[s.stationId]?.points.some(p=>p.predictedLoadKw!==null)).length)
 const userComparison=computed(()=>freeComparison(scope.value,scope.value.map(s=>forecasts.value[s.stationId]?.points.at(-1)?.predictedFreePiles??null),horizon.value))
-const loadChart=computed(()=>trend(history.value,prediction.value,capacity.value?thresholdKw.value:undefined))
+// 全网阈值是"全部站点装机之和"，量级远高于实际负荷；此时画阈值线会把曲线压平，故只在同量级时绘制。
+const loadDataMax=computed(()=>Math.max(0,...(history.value?.points||[]).map(p=>p.value??0),...(prediction.value?.points||[]).map(p=>p.predictedLoadKw??0)))
+const thresholdInScale=computed(()=>capacity.value>0&&thresholdKw.value>0&&thresholdKw.value<=loadDataMax.value*3)
+const loadChart=computed(()=>trend(history.value,prediction.value,thresholdInScale.value?thresholdKw.value:undefined))
 const idleChart=computed(()=>bars((prediction.value?.points||[]).map(p=>hour(p.intervalEnd)),(prediction.value?.points||[]).map(p=>p.predictedFreePiles),'个'))
-const heatChart=computed(()=>heat(stations.value,stations.value.map(s=>snapshot.value!.bundles[s.stationId].history)))
+// 热力图按站号排序，方便和可用性面板、下拉框里的编号一一对照。
+// ECharts 类目纵轴把数组第一项画在最下方，因此反向传入，让 001 在最上方、014 在最下方。
+const heatStations=computed(()=>[...stations.value].sort((a,b)=>a.stationId.localeCompare(b.stationId)).reverse())
+const heatChart=computed(()=>heat(heatStations.value,heatStations.value.map(s=>snapshot.value!.bundles[s.stationId].history)))
 const energyChart=computed(()=>bars(energy.value?.points.map(p=>hour(p.time))||[],energy.value?.points.map(p=>p.value)||[],'kWh','#9a86ff'))
-const comparison=computed(()=>bars(stations.value.map(s=>s.district),stations.value.map(s=>s.pileTotal?Math.round(s.idlePiles/s.pileTotal*100):null),'%','#9a86ff'))
+const comparison=computed(()=>bars(stations.value.map(stationAxisLabel),stations.value.map(s=>s.pileTotal?Math.round(s.idlePiles/s.pileTotal*100):null),'%','#9a86ff'))
 const paused=ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 const detail=ref(false),evaluation=ref(false)
 let restoreFocus:HTMLElement|null=null
@@ -68,7 +78,7 @@ watch(detail,async open=>{if(open){restoreFocus=document.activeElement as HTMLEl
 function trapFocus(e:KeyboardEvent){if(e.key==='Escape'){detail.value=false;return}if(e.key!=='Tab')return;const buttons=Array.from(document.querySelectorAll<HTMLButtonElement>('.drawer button'));const first=buttons[0],last=buttons.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}
 function pointer(event:MouseEvent){const el=event.currentTarget as HTMLElement,r=el.getBoundingClientRect();el.style.setProperty('--px',`${event.clientX-r.left}px`);el.style.setProperty('--py',`${event.clientY-r.top}px`)}
 async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch{error.value='当前浏览器不支持全屏显示。'}}
-const fullTime=(value:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(value))
+const fullTime=(value:string)=>{const d=new Date(value);return Number.isNaN(d.getTime())?'—':new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d)}
 </script>
 
 <template>
@@ -84,20 +94,20 @@ const fullTime=(value:string)=>new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/S
   <div v-if="error" class="error-message" role="alert">{{error}}<button @click="load">重试</button></div>
   <section class="numbers" :class="{'four-metrics':!admin}" aria-label="核心指标"><article v-for="(m,i) in metrics" :key="m.label" :style="{'--accent':palette[i%palette.length]}"><span>{{m.label}}</span><div><strong><AnimatedValue :value="m.value"/></strong><em>{{m.unit}}</em></div><small><i></i>{{m.sub}}</small></article></section>
   <main class="command-grid" :aria-busy="loading">
-   <OrderPanel v-if="admin" :summary="current?.orders[orderWindow]||null" :window-hours="orderWindow" @window="orderWindow=$event"/>
+   <OrderPanel v-if="admin" :summary="current?.orders[orderWindow]?.summary||null" :failed="!current||current.orders[orderWindow]?.failed===true" :window-hours="orderWindow" @window="orderWindow=$event"/>
    <section class="visual-core">
     <div class="core-top"><span><Activity :size="14"/>{{admin?'北京 · 站点空间分布':'未来 · 充电窗口'}}</span><span>{{selected?stationLabel(selected):'全网站点'}}<button v-if="selected" class="back-global" @click="select('')">返回全网</button></span></div>
     <StationMap v-if="admin" :stations="stations" :selected-id="store.state.stationId" :mock="store.dataMode==='mock'" @select="select"/>
-    <ChargingWindow v-else :prediction="prediction"/>
+    <ChargingWindow v-else :prediction="prediction" :flat="forecastFlat"/>
    </section>
-   <section class="glass forecast-panel"><div class="panel-title"><h2>{{admin?'负荷趋势与预测':'当前与未来空闲对比'}}</h2><div class="horizons"><button v-for="h in ([1,6,24] as const)" :key="h" :class="{active:horizon===h}" @click="horizon=h">{{h}}h</button></div></div><label v-if="admin" class="threshold-control">预警阈值<input v-model.number="threshold" type="range" min="10" max="100" step="5" aria-label="负荷预警阈值"/><b>{{threshold}}%</b><small>装机容量</small></label><BaseChart :option="admin?loadChart:userComparison" :height="191" :aria-label="admin?'历史及未来负荷走势与预警阈值':'站点当前与未来空闲数量对比'"/><div class="chart-summary"><span v-if="admin">预计峰值 <b>{{peak?.toFixed(1)??'—'}} <small>kW</small></b></span><span v-else>当前与 {{horizon}}h 后的预计数量</span><span>推荐时点 <b>{{best?hour(best.intervalEnd):'—'}}</b></span></div><div v-if="!prediction&&!admin" class="quiet-empty">暂无该时段预测</div></section>
+   <section class="glass forecast-panel"><div class="panel-title"><h2>{{admin?'负荷趋势与预测':'当前与未来空闲对比'}}</h2><div class="horizons"><button v-for="h in ([1,6,24] as const)" :key="h" :class="{active:horizon===h}" @click="horizon=h">{{h}}h</button></div></div><label v-if="admin" class="threshold-control">预警阈值<input v-model.number="threshold" type="range" min="10" max="100" step="5" aria-label="负荷预警阈值"/><b>{{threshold}}%</b><small>装机容量</small></label><BaseChart :option="admin?loadChart:userComparison" :height="191" :aria-label="admin?'历史及未来负荷走势与预警阈值':'站点当前与未来空闲数量对比'"/><div class="chart-summary"><span v-if="admin">预计峰值 <b>{{peak?.toFixed(1)??'—'}} <small>kW</small></b></span><span v-else>当前与 {{horizon}}h 后的预计数量</span><span>推荐时点 <b>{{bestLabel}}</b></span></div><div v-if="forecastFlat" class="chart-note">该时域预测空闲变化仅 {{freeAmplitude}} 个，各时点几乎并列，推荐不具备区分度。</div><div v-if="admin&&capacity>0&&!thresholdInScale" class="chart-note">全网阈值 {{thresholdKw.toFixed(0)}} kW 远高于当前负荷，图中暂不绘制阈值线；预警按站点单独判定。</div><div v-if="!prediction&&!admin" class="quiet-empty">暂无该时段预测</div></section>
    <section class="glass ranking-panel"><div class="panel-title"><h2>{{admin?'站点负荷排行':'推荐充电站点'}}</h2><span>{{admin?'kW':'按空闲比例排序'}}</span></div><button v-for="(s,i) in ranked.slice(0,5)" :key="s.stationId" class="rank" :class="{selected:store.state.stationId===s.stationId}" @click="select(s.stationId)"><em>{{String(i+1).padStart(2,'0')}}</em><span><b>{{stationLabel(s)}}</b><i><i :style="{width:`${admin?s.loadKw/Math.max(1,...stations.map(s=>s.loadKw))*100:s.idlePiles/Math.max(1,s.pileTotal)*100}%`}"></i></i></span><strong>{{admin?Number(s.loadKw.toFixed(1)):`${s.idlePiles}/${s.pileTotal}`}}</strong></button><button class="text-action" @click="evaluation=false;detail=true">查看全部站点 <ArrowUpRight :size="14"/></button></section>
-   <section v-if="admin" class="glass heat-panel"><div class="panel-title"><h2>站点 × 小时负荷热力</h2><span>低 <i class="color-scale"></i> 高</span></div><BaseChart :option="heatChart" :height="211" aria-label="各站点小时负荷热力图"/></section>
+   <section v-if="admin" class="glass heat-panel"><div class="panel-title"><h2>站点 × 小时负荷热力</h2><span>按站号排列 · 001 → 014</span></div><BaseChart :option="heatChart" :height="211" aria-label="各站点小时负荷热力图"/></section>
    <section v-if="admin" class="glass idle-panel"><div class="panel-title"><h2>未来空闲充电位</h2><span>小时末可用数量</span></div><BaseChart :option="idleChart" :height="190" aria-label="未来每小时末空闲充电位数量"/><div v-if="!prediction" class="quiet-empty">暂无该时段预测</div></section>
    <section class="glass bottom-energy"><div class="panel-title"><h2>{{admin?'小时充电量':'站点空闲比例对比'}}</h2><span>{{admin?'近24小时':'当前空闲 / 总数'}}</span></div><BaseChart :option="admin?energyChart:comparison" :height="165" :aria-label="admin?'过去24小时充电量':'各站点当前空闲比例'"/></section>
    <AvailabilityPanel :stations="stations" :selected-id="store.state.stationId" :admin="admin" @select="select"/>
    <section v-if="admin" class="glass bottom-weather alert-window"><div class="panel-title"><h2>负荷预警</h2><span>{{alerts.length}} 条 · 站点阈值 {{threshold}}%</span></div><div class="load-alerts"><button v-for="a in alerts" :key="a.stationId+a.start" @click="select(a.stationId)"><i></i><span><b>{{stationLabel(stations.find(s=>s.stationId===a.stationId)!)}}</b><small>预计 {{fullTime(a.start)}}—{{fullTime(a.end)}} 超过阈值，请关注</small><em>峰值 {{a.peakKw.toFixed(1)}} kW / 阈值 {{a.thresholdKw.toFixed(1)}} kW</em></span><ArrowUpRight :size="14"/></button><p v-if="!alerts.length" class="quiet-empty">{{forecastCoverage?'当前可用预测范围内暂无超限':'暂无可用预测，无法判断预警'}}</p></div><small class="alert-coverage">预测覆盖 {{forecastCoverage}} / {{scope.length}} 站 · 未来 {{horizon}} 小时</small></section>
-   <section v-else class="glass bottom-weather time-suggestions"><div class="panel-title"><h2>推荐时段</h2><span>按预计空闲数量排序</span></div><div v-for="(p,i) in recommendations" :key="p.intervalEnd" class="time-suggestion"><span>{{String(i+1).padStart(2,'0')}}</span><b>{{fullTime(p.intervalEnd)}}</b><strong>{{p.predictedFreePiles}} <small>个空闲位</small></strong></div><p v-if="!recommendations.length" class="quiet-empty">暂无该时段推荐</p></section>
+   <section v-else class="glass bottom-weather time-suggestions"><div class="panel-title"><h2>推荐时段</h2><span>按预计空闲数量排序</span></div><p v-if="forecastFlat" class="chart-note">预测空闲曲线几乎平坦（最大最小差 {{freeAmplitude}} 个），下列排序不代表真正的繁忙差异。</p><div v-for="(p,i) in recommendations" :key="p.intervalEnd" class="time-suggestion"><span>{{String(i+1).padStart(2,'0')}}</span><b>{{fullTime(p.intervalEnd)}}</b><strong>{{p.predictedFreePiles}} <small>个空闲位</small></strong></div><p v-if="!recommendations.length" class="quiet-empty">暂无该时段推荐</p></section>
   </main>
   <footer><span><i></i>{{selected?stationLabel(selected):'北京充电网络'}}<button v-if="selected" @click="select('')">恢复全网</button></span><span>{{(context?.meta.asOf||store.state.asOf).slice(0,10)}} / {{hour(context?.meta.asOf||store.state.asOf)}}<b>充能脉络</b></span></footer>
   <div v-if="detail" class="drawer-backdrop" @click.self="detail=false" @keydown="trapFocus"><section class="drawer" role="dialog" aria-modal="true" :aria-label="evaluation?'模型评估':'站点详情'"><div class="panel-title"><h2>{{evaluation?'预测表现':'站点全景'}}</h2><button @click="detail=false" aria-label="关闭站点详情"><X/></button></div><ModelEvaluation v-if="evaluation" :station-id="store.state.stationId"/><template v-else><p>选择站点，联动查看{{admin?'负荷与可用性':'空闲数量与推荐时间'}}。</p><button class="drawer-row" @click="select('');detail=false">全网站点</button><button v-for="s in ranked" :key="s.stationId" class="drawer-row" @click="select(s.stationId);detail=false"><span>{{stationLabel(s)}}<small>{{s.stationId}}</small></span><b>{{s.idlePiles}} / {{s.pileTotal}} 空闲</b><span v-if="admin">{{s.loadKw.toFixed(1)}} kW</span></button></template></section></div>

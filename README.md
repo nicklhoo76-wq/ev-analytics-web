@@ -1,82 +1,236 @@
-# 充能脉络 · 双角色数据展示作品
+# 电动汽车充电桩大数据分析与智能负荷预测大屏
 
-本版以独立的充电数据可视化为主题。用户端和管理员端共用数据上下文，各自突出充电时间决策与全网运营态势，不依赖第一阶段 Qt 项目的账号、导航、预约或支付功能。
+北京城市充电网络的大数据全流程项目：**数据生成 → PySpark 清洗 → Spark SQL 分层 → Spark MLlib 预测 → ADS 发布 → Flask API → Vue 大屏**。
 
-## 启动与构建
+本文档说明各环节技术栈、集群结构、如何运行与展示网页，以及当前发布批次的实际指标。
 
-在此目录执行：
+---
 
-```bash
-pnpm install
-pnpm dev
-pnpm build
+## 一、总体架构
+
+```mermaid
+flowchart LR
+  subgraph 数据生成["① 数据生成（成员1）"]
+    G["evsim 生成器<br/>Python + seed 可复现<br/>深圳 CHARGED 校准"]
+  end
+  subgraph 清洗分层["② 清洗与分层（成员2）"]
+    ODS["ODS<br/>JSONL 原样入库"]
+    Q["PySpark 质量发现<br/>重复/负功率/温度缺失"]
+    DWD["DWD<br/>去重 + 逐表守恒"]
+    DWS["DWS<br/>Spark SQL 聚合"]
+  end
+  subgraph 建模["③ 预测（成员3）"]
+    FE["特征工程<br/>O 时点 lag/均值/日历"]
+    RF["Spark MLlib<br/>RandomForest + 前一日基线"]
+    EV["评估<br/>整体/分站/分时域/分段"]
+  end
+  subgraph 服务["④ 发布与展示（成员4）"]
+    ADS["ADS 9 张表"]
+    AUDIT["独立审计 79 项"]
+    API["Flask API + SQLite 索引"]
+    WEB["Vue3 + ECharts 大屏"]
+  end
+  G --> ODS --> Q --> DWD --> DWS --> FE --> RF --> EV --> ADS --> AUDIT --> API --> WEB
 ```
 
-默认地址 http://localhost:4173；如端口占用，以终端实际地址为准。
+**发布顺序由代码强制**：发布只写批次目录（`status=pending_audit`）→ 独立审计写出 `ads_audit.json` → 激活才写根 `publication.json`。未审计的批次不可能成为"当前服务版本"。
 
-- 管理员大屏：/admin/overview
-- 用户大屏：/user/overview
-- 顶部按钮切换角色；旧角色内链接仍进入同一核心大屏。
+---
 
-## 本次重构
+## 二、各环节技术栈
 
-- 深蓝黑画布、电光青与紫蓝配色，关键数据集中在顶部。
-- 管理员中央是站点坐标分布；用户中央是未来充电窗口。
-- 管理员展示订单状态环图、站点地图、阈值预测曲线、负荷排名、单格热力图、空闲位柱图、小时充电量、8站状态与预警列表。用户展示充电窗口、当前/未来空闲对比、站点推荐、空闲比例、全部站点空闲和推荐时段。
-- 站点选择、地图节点、排名条和区域可用性按钮共同控制站点上下文；站点详情使用侧栏。
-- 支持 1/6/24 小时预测、刷新、全屏、暂停动态效果和减少动画系统设置。
-- 1920×1080 主屏完整显示；窄屏自然纵向排列。
-- 主页面移除来源提醒、接口说明、模拟场景选择和工程流水线，保留单位、时点和范围等解释数据所必需的信息。
+| 环节 | 技术栈 | 关键产物 |
+|---|---|---|
+| ① 数据生成 | Python 3.10、numpy、seed 可复现分片输出 | `generation_config.json`、`manifest.json`、`injection_log`、业务分布报告 |
+| ② 清洗分层 | **PySpark 3.5.9**（HDFS+Spark SQL），运行在 **Hadoop 3.2.1 / YARN** | ODS JSONL、DWD Parquet（逐表守恒）、DWS Parquet |
+| ③ 预测 | **Spark MLlib** RandomForestRegressor（20 树 / 深度 8）+ 前一日基线 | `metrics_e1.json`（E0/E1/E2）、三批回放预测 Parquet |
+| ④ 发布审计 | Python 标准库 + Spark（发布）、纯标准库（审计） | `batch_manifest.json`、`ads_audit.json`、`publication.json` |
+| ⑤ 接口 | **Flask** + **SQLite** 查询索引 | REST API（`/api/v1/...`）、`analytics.db` |
+| ⑥ 前端 | **Vue 3 + Vite 7 + ECharts 6 + vue-router + TypeScript** | 管理员端 / 用户端双视角大屏 |
 
-## 数据与接口边界（交付说明）
+### 集群环境（实测）
 
-默认使用 replay 模式：逐小时预测直接来自成员3补交的Spark MLlib Parquet，历史与状态来自同批次北京development原始数据的本地小数据汇总。全网为界面所选8站合计，非交付20站合计。旧占位曲线仅保留在显式mock模式中。
+| 项 | 值 |
+|---|---|
+| 节点 | master `192.168.176.128`（NN+SNN+RM+NM）、slave1 `192.168.176.130`、slave2 `192.168.176.129` |
+| Hadoop | 3.2.1，JDK 1.8.0_261 |
+| Spark | 3.5.9-bin-hadoop3（YARN 模式） |
+| HDFS 根 | `hdfs://master:9000/ev-analytics/{ods,dwd,dws,ads,ml,quality,quarantine}` |
+| Spark 资源 | `--driver-memory 1g --executor-memory 2g --executor-cores 1 --num-executors 3` |
 
-复制 .env.example 为 .env.local，设置 VITE_DATA_MODE=api 后请求 Flask。HTTP 前缀默认 /api/v1，代理默认 http://127.0.0.1:5000。正式接口尚未完成联调，不承诺仅切换开关就能兼容所有原始 ADS 行；需核对 src/types/api.ts 与 src/api/httpGateway.ts 的视图字段。
+---
 
-当前空间展示使用同批次dim_station中的经纬度；站点容量按dim_pile求和。API模式使用接口坐标，不混入Mock坐标。
+## 三、当前数据集与批次（2026-09-16）
 
-当前八个站点为界面样本，站点状态、核心充电位计数和排名来自同一批站点列表。可用性完整显示8个站点，按站点呈现而非按行政区域聚合；站点数量扩大后再补充分组方案。热力图为站点×小时，基于逐站小时序列；日期×小时矩阵尚未交付，因此本轮未虚构该矩阵。
+**数据集**：`beijing-gb-v2-seed-20260916`，2026-04-01 → 2026-10-01，183 天，14 站 / 168 桩 / 1000 用户 / 1000 车辆，遥测间隔 300 秒。
 
-推荐依据为空闲比例与未来空闲数量；不宣称路径距离、实际排队时间或个性化偏好。无预测时显示空状态，模型评估不在主屏杜撰精度。
+| 阶段 | 真实规模 |
+|---|---|
+| ODS（manifest 全量） | 11,505,883 行 / 3,354,771,155 字节（含注入日志表） |
+| 清洗输入（业务表） | 11,495,131 行（**与 ODS 口径不同，不可混用**） |
+| 质量发现 | 重复 9,462、负功率 410、温度缺失 885 |
+| DWD | 11,495,131 = 11,485,669 保留 + 9,462 去重 + 0 隔离（守恒成立） |
+| DWS | station_hour 61,488 / city_hour 4,392 / day_profile 2,562 / model_features 61,488 |
+| ML 样本 | train 984,144 / val 234,192 / test 234,192（按时间切分，未随机打散） |
 
-## 代码位置
+**当前生效批次**：`gb_v2b_20260916_1200_ads_v2`（训练 run `gb_v2b_20260916_1200`，YARN `application_1789469974669_0027`）
 
-- src/pages/Dashboard.vue：双角色大屏、筛选与联动。
-- src/stores/useNetworkData.ts：同一时点全网站点数据缓存、请求竞态保护、失败保留快照。
-- src/components/StationMap.vue、AvailabilityPanel.vue、ChargingWindow.vue、OrderPanel.vue：地图、可用性、充电窗口、订单概览。
-- src/lib/operations.ts：连续超阈值时段合并与订单状态名称。
-- src/styles/nexus.css：视觉系统、动效、桌面与窄屏布局。
-- src/lib/neonCharts.ts：图表配置与北京时间标签。
-- src/components/BaseChart.vue：按需注册 ECharts、尺寸监听和生命周期。
-- src/api/：Mock 与 Flask 适配。
-- src/mocks/：界面夹具及站点坐标。
+**ADS 九张表**：overview 3 / series 256,200 / station_status 42 / weather 61,488 / weather_impact 6 / predictions 1,008 / model_metrics 6 / backtest_truth 61,488 / order_events 223,348
 
-## 验证
+**三个回放时点**（均已避开午夜，落在测试期且满足 24 小时真值窗口）：
 
-生产构建包含 TypeScript 校验。docs/check-v3.cjs 使用 Playwright 检查双角色切换、连续站点切换、8站完整可见、订单窗口、阈值预警、单格热力提示、空闲悬停固定、无预测、接口失败重试和响应式布局；PLAYWRIGHT_MODULE 可指定本机 Playwright 安装路径。此脚本针对 Vite 开发模式运行（异常用例通过开发模块切换场景）。
+| 时点 | 业务形态 |
+|---|---|
+| 2026-09-02 18:00（默认） | 工作日晚高峰 |
+| 2026-09-16 12:00 | 工作日平峰 |
+| 2026-09-27 20:00 | 周日晚间 |
 
-最新截图以 docs/screenshots/v3- 开头；旧截图仅代表历史版本。
+---
 
-## 2026-09-15 成员3评估接入
+## 四、如何运行与展示网页
 
-管理员顶部新增“模型评估”侧栏，直接消费成员3 metrics_e1.json，支持站点综合误差和天气共同样本对照。该段记录首次接入评估的工作；补充包的预测Parquet现已接入，后续状态以 docs/成员3补充接入完成说明.md 为准。
+### 4.1 前置
 
-## V3交互与运营模块
+- 本地结果库已回传：`成员4交付/result_store/beijing-gb-v2-seed-20260916/`（含 `publication.json`、批次目录 9 张表 JSONL、`ads_audit.json`、阶段报告）
+- 若无：`python 成员4交付/tools/pull_pipeline_evidence.py && python 成员4交付/tools/pull_ads_result.py`
 
-- 顶部常驻“全网站点 + 8站”快速切换；点已选站点保持选择，返回全网使用明确按钮。
-- 首次加载或更换时点时预取各站数据；切换站点和1/6/24h时域直接使用当前快照，不遮罩、不降低页面亮度。数字和图表平滑更新。
-- 管理员订单窗口为近24小时/7天：以窗口内创建的订单为集合，以所选时点前的最后事件确定状态。电价类型、状态分布均来自汇总文件。
-- 预警阈值为站点装机容量的10%—100%，默认80%，保存在浏览器本地。连续超限小时合并成一条提醒；全网曲线阈值使用全网容量，预警列表逐站计算。只提供站点级提醒。
-- 用户端移除负荷相关内容，充电窗口的柱高表示预计空闲数量；支持悬停、键盘聚焦及点击固定时点。
-- 新订单接口与计算口径、当前数据边界见 [V3交付与接口说明](docs/V3交付与接口说明.md)。
+### 4.2 启动接口（终端 1）
 
-## 成员3补充包接入
+```
+cd member4-api
+.\run_api.cmd
+```
+- 监听 `http://127.0.0.1:5000`；首次启动会按当前发布批次重建 `analytics.db`（约 1–2 分钟，210 MB JSONL 入索引），期间端口未就绪
+- 验证：浏览器打开 `http://127.0.0.1:5000/api/v1/health`，应看到 `audit_status: PASS`
 
-- 默认回放时点为2023-04-27 12:00，可切换04-25 00:00、04-29 23:00（北京时间）。不再将模型套用到训练截止前的旧时点。
-- 8个展示站点对应17个桩、1004kW装机，数值来自同批次维表，已替换原UI夹具的25桩。站点预测与全网合计严格一致。
-- `VITE_DATA_MODE=replay` 使用本地交付结果；`mock` 使用历史UI夹具；`api` 请求Flask。默认开箱运行无需Python或Spark。
-- 更新交付包后运行 `python scripts/prepare-member3.py` 可重新校验并生成小型回放JSON，需要pyarrow；原始交付文件保持只读。
-- 导入校验记录：`docs/member3-import-report.json`；浏览器数值验收：`docs/replay-check-report.json`。
-- 新预览地址使用 http://127.0.0.1:4175；常规pnpm dev仍使用4173或终端提示端口。浏览器检查脚本当前以4175为目标。
-- 正式Flask/ADS联调仍需进行，本地历史汇总不替代成员2的Spark作业。完整说明见 [成员3补充接入完成说明](docs/成员3补充接入完成说明.md)。
+> 注意：不要用 `python app.py`（工具链可能吞掉 `cd`）；若 5000 端口有旧进程残留，先按"七、常见问题"清理。
+
+### 4.3 启动前端（终端 2）
+
+```
+cd ev-analytics-web
+node node_modules\vite\bin\vite.js --port 4173 --host 127.0.0.1
+```
+- 环境变量在 `.env.local`：`VITE_DATA_MODE=api`、`VITE_API_BASE=/api/v1`、`VITE_API_PROXY=http://127.0.0.1:5000`
+- 不要用 `pnpm dev`（工作区配置会报 `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL`），也不要用 `npx vite`（会去装另一个大版本）
+
+### 4.4 展示页面
+
+| 视角 | 地址 |
+|---|---|
+| 管理员端（全域态势） | http://127.0.0.1:4173/admin/overview |
+| 用户端（充电时空） | http://127.0.0.1:4173/user/overview |
+
+**建议演示顺序**：切数据时点（3 个）→ 切站点（14 站 / 全网）→ 看负荷趋势与预测 → 订单 24h/7天 → 模型评估弹窗 → 用户端推荐时段。
+
+**分辨率验收**：1920×1080 与 1366×768 均已验证，截图在 `成员4交付/验收截图/`。
+
+### 4.5 构建与测试
+
+```
+cd member4-api      && python -m unittest test_app          # 接口契约 20 项
+cd ev-analytics-web && npx vue-tsc --noEmit -p tsconfig.app.json   # 类型检查
+cd ev-analytics-web && npx vite build                       # 生产构建
+```
+
+---
+
+## 五、流水线复现命令
+
+```bash
+# 集群操作统一走工具，避免引号被本地 shell 破坏
+python 成员4交付/tools/remote.py master 成员4交付/tools/remote_cmds/restart_cluster.sh   # 重启集群
+python 成员4交付/tools/remote.py master 成员4交付/tools/remote_cmds/run_v2_pipeline.sh   # ingest→quality→dwd→dws
+python 成员4交付/tools/remote.py master 成员4交付/tools/remote_cmds/run_v2_verify.sh     # 网格/覆盖率校验+业务审计
+
+# 训练（必须以 YARN 提交，否则会退化成 local 模式）
+bash /home/bit/rerun_ml_v3.sh
+
+# ADS 发布 → 独立审计 → 激活（顺序由代码保证）
+python 成员4交付/tools/deploy_ads_tools.py
+python 成员4交付/tools/remote.py master 成员4交付/tools/remote_cmds/run_ads_v2.sh <run_id>
+python 成员4交付/tools/remote.py master "cd /home/bit/Project_2/pipeline && python3 audit_ads_batch.py <dataset> <batch>"
+python 成员4交付/tools/remote.py master "cd /home/bit/Project_2/pipeline && python3 activate_ads_batch.py <dataset> --batch <batch>"
+
+# 回退到上一批次
+python 成员4交付/tools/remote.py master "cd /home/bit/Project_2/pipeline && python3 activate_ads_batch.py <dataset> --rollback"
+
+# 回传与评估
+python 成员4交付/tools/pull_ads_result.py
+python 成员4交付/tools/forecast_shape.py      # 预测曲线形状对比
+```
+
+---
+
+## 六、模型评估结论（第二版，完整测试集 234,192 样本）
+
+| 目标 | 模型 MAE | 前一日基线 MAE | 模型 RMSE | 说明 |
+|---|---:|---:|---:|---|
+| 站点负荷 (kW) | **14.679** | 19.043 | 18.915 | 优于基线 22.9% |
+| 空闲桩 (个) | **1.343** | 1.773 | 1.730 | 优于基线 24.2% |
+
+**分段（防止整体均值掩盖短板）**
+
+| 分段 | MAE | 相对误差 |
+|---|---:|---:|
+| 负荷·非零 | 14.329 | 54% |
+| 负荷·p75+ | 23.611 | 40% |
+| **负荷·p90+** | **32.980** | **42%** |
+| 空闲桩·全占用（真值 0） | 1.802 | — |
+
+**分场景负荷 MAE**：mixed 12.58 < commercial 13.03 < residential 14.74 < transit 15.79 < office 16.09 kW
+
+**预测曲线形状**：同窗口预测振幅 / 真值振幅 = **0.230–0.452**（全网）。
+
+### 必须同时说明的限制
+
+1. **高负荷与满位时段误差显著大于整体**（p90+ 相对误差 42%、全占用时段空闲桩 MAE 为整体的 1.34 倍）；
+2. **预测只还原真值振幅的约 1/4–1/2**：远端时域只能用 O 时点观测，无法知道目标时刻附近的实际水平。**不得宣称预测可用于排班调度**，只能说能反映日内趋势；
+3. **天气增强 E2 只覆盖 1/24 时域**（预报未归档），不得表述为"全时域天气增强"；
+4. 接口在无数据时返回 `—` / `null` 并标注原因，**不把缺失伪装成 0**；订单接口失败与"确实没有订单"分别提示。
+
+---
+
+## 七、常见问题
+
+| 现象 | 原因与处理 |
+|---|---|
+| 接口 5000 无法连接，或页面数据是旧的 | 可能残留多个旧进程同时 LISTENING。`Get-NetTCPConnection -LocalPort 5000 -State Listen \| Select -ExpandProperty OwningProcess -Unique` 逐个 `Stop-Process -Id <id> -Force`，再删除 `analytics.db` 重启 |
+| 首次启动接口响应很慢 | 正在重建 SQLite 索引（210 MB JSONL），等 1–2 分钟 |
+| `pnpm dev` 报 `Command "dev" not found` | 工作区配置导致，改用 4.3 的命令 |
+| 页面数字停在 0 | 动画计数器在后台标签页不推进；接口数据正常，切到前台即可（已加 visibilityState 兜底） |
+| Spark 报 `file:/...` 找不到路径 | 多节点 executor 不能读 master 本地文件；模型与预测 Parquet 必须写 HDFS |
+| 训练退化成本地模式 | 必须 `--master yarn` 提交，检查日志里的 `ML_APPLICATION_ID` 是否为 `application_*` |
+
+---
+
+## 八、目录结构
+
+```
+workplace/
+├─ phase2-data-generator/        ① 数据生成器（configs/src/profiles/tests）
+├─ 成员1交付成员2/                生成清单、表字段字典、深圳源数据审计
+├─ 成员2交付成员4/                ② 清洗分层脚本（common/run/stage_ingest|quality|dwd|dws|ads）
+├─ 成员3交付成员4/                ③ ML 代码与交付（code/member3_ml、字段说明）
+├─ 成员4交付/
+│  ├─ tools/                     ④ 远程执行、发布审计激活、回传、审计脚本
+│  ├─ result_store/              本地发布副本（publication.json + 批次目录）
+│  ├─ pipeline_runs/             阶段报告与 YARN 作业证据
+│  ├─ audit/                     数据审计、分段评估、形状对比 JSON
+│  ├─ 验收截图/                  1920×1080 与 1366×768 截图
+│  └─ 第二轮-第*-*记录.md        各步骤执行记录（含新旧模型对比）
+├─ member4-api/                  ⑤ Flask 接口 + SQLite 索引 + 契约测试
+├─ ev-analytics-web/             ⑥ Vue 大屏（src/api、src/stores、src/components、src/pages）
+└─ 第二阶段规划/                  规划、接口契约、任务书、执行状态报告
+```
+
+---
+
+## 九、交付记录索引
+
+| 文档 | 内容 |
+|---|---|
+| `成员4交付/第二轮-第四五步-全流程重跑与重训练记录.md` | 清洗分层结果、新旧模型指标、分段评估 |
+| `成员4交付/第二轮-第六步-回放场景选择与预测记录.md` | 三个回放时点的选择标准与告警口径 |
+| `成员4交付/第二轮-第七八步-ADS发布审计与Web联调记录.md` | 发布审计激活流程、API 修复清单、尺寸验收、已知限制 |
+| `成员4交付/audit/*.json` | 数据审计、分段评估、形状对比、批次审计原始证据 |

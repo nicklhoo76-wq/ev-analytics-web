@@ -3,12 +3,15 @@ import { api } from '@/api'
 import { useDashboardStore } from './dashboard'
 import type { DashboardContext, MetricSeries, OverviewData, PredictionData, StationStatus } from '@/types/api'
 import type { OrderSummary } from '@/lib/operations'
-interface StationBundle { overview:OverviewData; history:MetricSeries; energy:MetricSeries; prediction:PredictionData|null; orders:Record<number,OrderSummary|null> }
+interface OrderState { summary:OrderSummary|null; failed:boolean }
+interface StationBundle { overview:OverviewData; history:MetricSeries; energy:MetricSeries; prediction:PredictionData|null; orders:Record<number,OrderState> }
 interface NetworkSnapshot { context:DashboardContext; stations:StationStatus[]; bundles:Record<string,StationBundle> }
 export function useNetworkData(){
  const store=useDashboardStore();const snapshot=shallowRef<NetworkSnapshot|null>(null)
  const loading=ref(false),error=ref('');let sequence=0
  const current=computed(()=>snapshot.value?.bundles[store.state.stationId] || snapshot.value?.bundles[''])
+ // 订单失败与“确实没有订单”必须可区分，不能让失败静默变成 null 汇总
+ const loadOrders=async(time:string,id:string,hours:24|168):Promise<OrderState>=>{try{return {summary:await api.getOrders(time,hours,id),failed:false}}catch{return {summary:null,failed:true}}}
  async function refresh(){
   const token=++sequence,time=store.state.asOf;loading.value=true;error.value=''
   try{
@@ -16,7 +19,7 @@ export function useNetworkData(){
    const entries=await Promise.all(['',...stations.map(s=>s.stationId)].map(async id=>{
     const [overview,history,energy,prediction,day,week]=await Promise.all([
      api.getOverview(time,id),api.getSeries('load',time,id),api.getSeries('energy',time,id),api.getPrediction(24,time,id),
-     api.getOrders(time,24,id).catch(()=>null),api.getOrders(time,168,id).catch(()=>null),
+     loadOrders(time,id,24),loadOrders(time,id,168),
     ])
     return [id,{overview,history,energy,prediction,orders:{24:day,168:week}}] as const
    }))

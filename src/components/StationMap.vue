@@ -29,7 +29,7 @@ const featured = computed(() => nodes.value.find(s => s.stationId === hoveredId.
       class="station-marker"
       :class="{active:selectedId===s.stationId,left:s.x>62,middle:s.x>45&&s.x<=62,top:s.y<24,bottom:s.y>64,edgeLeft:s.x<18,edgeRight:s.x>74,originZone:s.x<24&&s.y>64}"
       :style="{left:s.x+'%',top:s.y+'%'}"
-      :aria-label="`${s.district} ${s.stationId}，空闲${s.idlePiles}个`"
+      :aria-label="`${s.district} ${s.stationId}，空闲${s.idlePiles}个，在线${s.pileTotal-s.faultPiles}/${s.pileTotal}，当前负荷${s.loadKw.toFixed(1)} kW`"
       :aria-pressed="selectedId===s.stationId"
       @mouseenter="hoveredId=s.stationId"
       @mouseleave="hoveredId=''"
@@ -41,6 +41,8 @@ const featured = computed(() => nodes.value.find(s => s.stationId === hoveredId.
       <span class="marker-code">{{s.stationId.slice(-3)}}</span>
       <span v-if="theme!=='light'" class="marker-label">{{s.district}}<small>{{s.stationId.slice(-3)}}站 · {{s.idlePiles}}空闲</small></span>
     </button>
+    <!-- 亮色主题的悬浮框与暗色主题的 .marker-label 保持同一尺寸：同样是区县 + 站号两行，
+         因此只保留这两行内容，在线数与负荷仍在按钮的 aria-label 里可读。 -->
     <aside
       v-if="theme==='light'&&featured"
       class="map-focus-card"
@@ -48,9 +50,7 @@ const featured = computed(() => nodes.value.find(s => s.stationId === hoveredId.
       :style="{left:featured.x+'%',top:featured.y+'%'}"
       aria-live="polite"
     >
-      <b>{{featured.district}}</b>
-      <span>{{featured.stationId.slice(-3)}}站 · {{featured.idlePiles}}空闲</span>
-      <small>在线 {{featured.pileTotal-featured.faultPiles}}/{{featured.pileTotal}} · 当前负荷 {{featured.loadKw.toFixed(1)}} kW</small>
+      {{featured.district}}<small>{{featured.stationId.slice(-3)}}站 · {{featured.idlePiles}}空闲</small>
     </aside>
     <p v-if="!nodes.length" class="quiet-empty">站点空间数据暂不可用</p>
     <span class="map-direction">北 ↑　站点坐标分布　东 →</span>

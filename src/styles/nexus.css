@@ -250,18 +250,20 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
  bottom:auto;
  transform:translateX(-50%);
  z-index:7;
- width:min(210px,44%);
- padding:10px 12px;
+ width:max-content;
+ padding:4px 6px;
+ color:var(--text-primary);
+ white-space:nowrap;
+ font-size:12px;
  background:rgba(255,255,255,.92);
- border:1px solid rgba(220,231,239,.95);
- border-radius:10px;
+ border:0;
+ border-radius:4px;
  box-shadow:0 8px 24px rgba(30,70,100,.11);
  backdrop-filter:blur(8px);
  pointer-events:none;
 }
-.map-focus-card b{display:block;color:var(--text-primary);font-size:13px;font-weight:650}
-.map-focus-card span{display:block;margin-top:4px;color:#128E91;font-size:11px}
-.map-focus-card small{display:block;margin-top:4px;color:var(--text-secondary);font-size:9px;line-height:1.45}
+/* 与暗色主题 .marker-label 同尺寸：首行 12px 区县，次行 9px 小字。 */
+.map-focus-card small{display:block;margin-top:3px;color:var(--text-secondary);font-size:9px}
 .map-direction{
  color:var(--text-muted);
  z-index:6;
@@ -401,10 +403,7 @@ footer button{color:#128E91}
  .marker-label{background:rgba(255,255,255,.94);max-width:100px}
  .station-marker.bottom .marker-label{bottom:28px}
  .station-marker.originZone .marker-label{bottom:31px;left:26px}
- .map-focus-card{top:8px;bottom:auto;left:50%;padding:7px 9px;width:min(190px,44%)}
- .map-focus-card b{font-size:11px}
- .map-focus-card span{font-size:10px}
- .map-focus-card small{font-size:8px}
+ .map-focus-card{top:8px;bottom:auto;left:50%}
  .station-status-grid.paged{gap:6px}
  .station-status-grid.paged>button{padding:7px 9px}
  .availability-pager{margin:-3px 0 5px}
@@ -624,7 +623,6 @@ body:has(.nexus.theme-dark){background:#080f20}
 .map-focus-card{
  --focus-dx:22px;
  --focus-dy:-50%;
- width:min(190px,42%);
  transform:translate(var(--focus-dx),var(--focus-dy));
  transition:left .14s ease,top .14s ease;
 }
@@ -632,10 +630,10 @@ body:has(.nexus.theme-dark){background:#080f20}
 .map-focus-card.alignTop{--focus-dy:-16px}
 .map-focus-card.alignBottom{--focus-dy:calc(-100% + 16px)}
 @media(min-width:1251px) and (max-height:850px){
- .map-focus-card{--focus-dx:18px;width:min(172px,42%)}
+ .map-focus-card{--focus-dx:18px}
  .map-focus-card.flipX{--focus-dx:calc(-100% - 18px)}
 }
 @media(max-width:760px){
- .map-focus-card{--focus-dx:16px;width:min(158px,52%)}
+ .map-focus-card{--focus-dx:16px}
  .map-focus-card.flipX{--focus-dx:calc(-100% - 16px)}
 }

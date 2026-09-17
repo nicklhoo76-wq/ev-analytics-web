@@ -619,3 +619,23 @@ body:has(.nexus.theme-dark){background:#080f20}
  .nexus:not(.passenger) .heat-panel>.base-chart{min-height:180px}
  .nexus:not(.passenger) .bottom-energy>.base-chart{min-height:105px}
 }
+
+/* Light theme: the station card is anchored beside the hovered/focused dot instead of the map header. */
+.map-focus-card{
+ --focus-dx:22px;
+ --focus-dy:-50%;
+ width:min(190px,42%);
+ transform:translate(var(--focus-dx),var(--focus-dy));
+ transition:left .14s ease,top .14s ease;
+}
+.map-focus-card.flipX{--focus-dx:calc(-100% - 22px)}
+.map-focus-card.alignTop{--focus-dy:-16px}
+.map-focus-card.alignBottom{--focus-dy:calc(-100% + 16px)}
+@media(min-width:1251px) and (max-height:850px){
+ .map-focus-card{--focus-dx:18px;width:min(172px,42%)}
+ .map-focus-card.flipX{--focus-dx:calc(-100% - 18px)}
+}
+@media(max-width:760px){
+ .map-focus-card{--focus-dx:16px;width:min(158px,52%)}
+ .map-focus-card.flipX{--focus-dx:calc(-100% - 16px)}
+}

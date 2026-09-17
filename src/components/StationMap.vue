@@ -41,7 +41,13 @@ const featured = computed(() => nodes.value.find(s => s.stationId === hoveredId.
       <span class="marker-code">{{s.stationId.slice(-3)}}</span>
       <span v-if="theme!=='light'" class="marker-label">{{s.district}}<small>{{s.stationId.slice(-3)}}站 · {{s.idlePiles}}空闲</small></span>
     </button>
-    <aside v-if="theme==='light'&&featured" class="map-focus-card" aria-live="polite">
+    <aside
+      v-if="theme==='light'&&featured"
+      class="map-focus-card"
+      :class="{flipX:featured.x>55,alignTop:featured.y<26,alignBottom:featured.y>62}"
+      :style="{left:featured.x+'%',top:featured.y+'%'}"
+      aria-live="polite"
+    >
       <b>{{featured.district}}</b>
       <span>{{featured.stationId.slice(-3)}}站 · {{featured.idlePiles}}空闲</span>
       <small>在线 {{featured.pileTotal-featured.faultPiles}}/{{featured.pileTotal}} · 当前负荷 {{featured.loadKw.toFixed(1)}} kW</small>

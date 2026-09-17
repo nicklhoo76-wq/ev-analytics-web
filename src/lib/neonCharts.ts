@@ -47,15 +47,16 @@ export function trend(history: MetricSeries | null, forecast: PredictionData | n
   const past = history?.points || []
   const next = forecast?.points || []
   const forecastBridge = past.length ? [...past.slice(0, -1).map(() => null), past[past.length - 1].value] : []
+  const thresholdVisible = thresholdKw !== undefined
   return {
     ...base,
     legend: { right: 0, top: 0, textStyle: { color: dark ? '#91a4c6' : '#6F8296', fontSize: 10 } },
     xAxis: { ...axis, type: 'category', boundaryGap: false, data: [...past.map(p => hour(p.time)), ...next.map(p => hour(p.intervalStart))] },
-    yAxis: { ...axis, type: 'value', name: 'kW', min: 0, max: thresholdKw === undefined ? undefined : ({ max }: { max: number }) => Math.ceil(Math.max(max, thresholdKw) * 1.08 / 50) * 50, splitNumber: 3, nameTextStyle: { color: dark ? '#8095b7' : '#8FA0B3' } },
+    yAxis: { ...axis, type: 'value', name: 'kW', min: 0, max: thresholdVisible ? ({ max }: { max: number }) => Math.ceil(Math.max(max, thresholdKw) * 1.08 / 50) * 50 : undefined, splitNumber: thresholdVisible ? 3 : 2, axisLabel: { ...axis.axisLabel, hideOverlap: true }, nameTextStyle: { color: dark ? '#8095b7' : '#8FA0B3' } },
     tooltip: { trigger: 'axis', ...tooltip },
     series: [
       { name: '历史负荷', type: 'line', smooth: 0.25, showSymbol: false, data: [...past.map(p => p.value), ...next.map(() => null)], lineStyle: { width: dark ? 2.5 : 2.4, color: dark ? undefined : '#19C7C9' }, areaStyle: { color: dark ? '#55e6ee' : '#19C7C9', opacity: dark ? 0.08 : 0.09 } },
-      { name: '未来预测', type: 'line', markLine: { silent: true, symbol: 'none', label: { formatter: '预警阈值 {c} kW', color: dark ? '#ffa96a' : '#FFAA45', fontSize: 9, position: 'insideEndTop' }, lineStyle: { color: dark ? '#ffa96a' : '#FFAA45', type: 'dashed', width: dark ? 1.5 : 1.2 }, data: thresholdKw !== undefined ? [{ yAxis: Number(thresholdKw.toFixed(1)) }] : [] }, smooth: 0.25, showSymbol: next.length === 1, data: [...forecastBridge, ...next.map(p => p.predictedLoadKw)], lineStyle: { type: 'dashed', width: dark ? 2.5 : 2.2, color: dark ? undefined : '#7167E8' }, areaStyle: { color: dark ? undefined : '#7167E8', opacity: dark ? 0.07 : 0.06 } },
+      { name: '未来预测', type: 'line', markLine: { silent: true, symbol: 'none', label: { formatter: '预警阈值 {c} kW', color: dark ? '#ffa96a' : '#FFAA45', fontSize: 9, position: 'insideEndTop' }, lineStyle: { color: dark ? '#ffa96a' : '#FFAA45', type: 'dashed', width: dark ? 1.5 : 1.2 }, data: thresholdVisible ? [{ yAxis: Number(thresholdKw.toFixed(1)) }] : [] }, smooth: 0.25, showSymbol: next.length === 1, data: [...forecastBridge, ...next.map(p => p.predictedLoadKw)], lineStyle: { type: 'dashed', width: dark ? 2.5 : 2.2, color: dark ? undefined : '#7167E8' }, areaStyle: { color: dark ? undefined : '#7167E8', opacity: dark ? 0.07 : 0.06 } },
     ],
   }
 }

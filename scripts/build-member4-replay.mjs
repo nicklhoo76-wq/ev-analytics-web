@@ -9,6 +9,7 @@ const outFile = path.resolve(root, 'src', 'data', 'member4-replay.json')
 const readJson = file => JSON.parse(fs.readFileSync(path.join(batchDir, file), 'utf8'))
 const manifest = readJson('batch_manifest.json')
 const metrics = readJson('metrics_e1.json')
+const mlRun = readJson('ml_run_manifest.json')
 const availableAsOf = manifest.available_as_of
 const stationsByAsOf = new Map()
 const overviewByAsOf = new Map()
@@ -35,6 +36,32 @@ const asQuality = value => value === 'partial' || value === 'unavailable' ? valu
 const stationKey = row => row.station_id
 const asOfKey = row => row.as_of_time || row.forecast_origin
 const bundleKey = (asOf, stationId, suffix) => `${asOf}::${stationId}::${suffix}`
+const score = value => ({ n: value?.n ?? 0, mae: value?.mae ?? 0, rmse: value?.rmse ?? 0 })
+const seriesBlock = value => ({
+  model: score(value?.model),
+  baselinePrevDay: score(value?.baseline_prev_day),
+  commonSampleCount: value?.common_sample_count ?? 0,
+  sameSample: true,
+  perHorizon: value?.per_horizon || [],
+  perStation: (value?.per_station || []).map(item => ({ stationId: item.station_id, n: item.n, mae: item.mae, rmse: item.rmse })),
+})
+const modelMetric = (experiment, targetName, unit, block) => ({
+  experiment,
+  modelVersion: metrics.model_versions?.join(' / ') || 'load_rf_v1 / free_rf_v1',
+  targetName,
+  horizonHours: 24,
+  algorithm: 'RandomForest',
+  engine: 'Spark MLlib',
+  sampleCount: block?.model?.n ?? 0,
+  mae: block?.model?.mae ?? 0,
+  rmse: block?.model?.rmse ?? 0,
+  baselineMae: block?.baseline_prev_day?.mae ?? 0,
+  withWeather: experiment === 'E2',
+  testRange: `${metrics.split?.test_start || ''} ~ ${metrics.split?.data_end_exclusive || ''}`,
+  metricUnit: unit,
+  perHorizon: block?.per_horizon || [],
+  perStation: (block?.per_station || []).map(item => ({ stationId: item.station_id, n: item.n, mae: item.mae, rmse: item.rmse })),
+})
 
 await readJsonl('ads_overview.jsonl', row => {
   overviewByAsOf.set(row.as_of_time, row)
@@ -85,6 +112,7 @@ await readJsonl('ads_predictions.jsonl', row => {
 })
 
 await readJsonl('ads_series.jsonl', row => {
+  if (row.granularity !== 'hour') return
   if (row.metric !== 'load' && row.metric !== 'energy') return
   const rowEnd = toMs(row.interval_end)
   for (const window of asOfWindows) {
@@ -148,6 +176,48 @@ const output = {
   trainingDataCutoff: metrics.split?.val_start,
   modelVersion: metrics.model_versions?.join(' / ') || 'load_rf_v1 / free_rf_v1',
   featureVersion: metrics.feature_version || 'v1',
+  modelEvaluation: {
+    items: [
+      modelMetric('E1', 'load_kw', 'kW', metrics.load),
+      modelMetric('E1', 'idle_pile_count', '个', metrics.free),
+      modelMetric('E2', 'load_kw', 'kW', metrics.e2?.load),
+      modelMetric('E2', 'idle_pile_count', '个', metrics.e2?.free),
+    ],
+    datasetId: manifest.dataset_id,
+    mlRunId: mlRun.run_id,
+    sparkVersion: metrics.spark_version,
+    featureVersion: metrics.feature_version || 'v1',
+    split: {
+      valStart: metrics.split?.val_start,
+      testStart: metrics.split?.test_start,
+      dataEndExclusive: metrics.split?.data_end_exclusive,
+    },
+    testSampleCount: metrics.test_feature_complete_samples_e1,
+    constraints: {
+      loadClipTriggers: metrics.constraints?.load_clip_triggers ?? 0,
+      freeClipTriggers: metrics.constraints?.free_clip_triggers ?? 0,
+      note: metrics.constraints?.note || '',
+    },
+    comparison: {
+      load: seriesBlock(metrics.load),
+      free: seriesBlock(metrics.free),
+    },
+    weatherExperiment: {
+      status: metrics.e2?.status || 'unavailable',
+      commonSampleCount: metrics.e2?.common_sample_count ?? 0,
+      coverageRatio: metrics.e2?.weather_coverage_ratio ?? 0,
+      coveredHorizons: metrics.e2?.load?.per_horizon?.map(item => item.h) || [],
+      totalHorizons: 24,
+      load: score(metrics.e2?.load?.model),
+      free: score(metrics.e2?.free?.model),
+      e1OnCommon: {
+        load: { model: score(metrics.e2?.e1_on_common?.load?.model) },
+        free: { model: score(metrics.e2?.e1_on_common?.free?.model) },
+      },
+      note: '天气增强只覆盖已归档天气预报的共同样本，不代表全时域效果。',
+    },
+    evaluationNote: metrics.constraints?.note || '评估误差在约束前(raw prediction)计算。',
+  },
   snapshots,
 }
 

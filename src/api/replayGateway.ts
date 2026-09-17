@@ -1,9 +1,9 @@
 import replay from '@/data/member4-replay.json'
 import { useDashboardStore } from '@/stores/dashboard'
-import type { DashboardGateway, DataMeta, PredictionPoint, StationStatus } from '@/types/api'
+import type { DashboardGateway, DataMeta, ModelEvaluationPayload, PredictionPoint, StationStatus } from '@/types/api'
 import type { OrderSummary } from '@/lib/operations'
 
-const replayInfo = replay as { datasetId: string; batchId?: string; sourceLabel?: string; availableAsOf: string[]; modelVersion: string; featureVersion: string; snapshots: unknown }
+const replayInfo = replay as { datasetId: string; batchId?: string; sourceLabel?: string; availableAsOf: string[]; modelVersion: string; featureVersion: string; modelEvaluation?: Omit<ModelEvaluationPayload, 'meta'>; snapshots: unknown }
 
 interface ReplayPoint { time: string; value: number | null; quality: 'complete' | 'partial' | 'unavailable' }
 interface ReplayBundle {
@@ -48,11 +48,23 @@ function meta(asOf: string): DataMeta {
     qualityStatus: 'complete',
     coverageRatio: 1,
     isFixture: false,
+    stationCount: snapshots[asOf]?.stations.length ?? 0,
   }
 }
 
 function sumPoints(points: (number | null)[]): number | null {
   return points.some(p => p === null) ? null : points.reduce<number>((a, b) => a + (b ?? 0), 0)
+}
+
+function sumSeriesByTime(bundles: ReplayBundle[], metric: 'load' | 'energy') {
+  const series = (bundle: ReplayBundle) => metric === 'energy' ? (bundle.energy || bundle.history) : bundle.history
+  const times = new Set(series(bundles[0]!).map(p => p.time))
+  const byBundle = bundles.map(bundle => new Map(series(bundle).map(p => [p.time, p.value])))
+  return [...times].sort((a, b) => a.localeCompare(b)).map(time => ({
+    time,
+    value: sumPoints(byBundle.map(points => points.get(time) ?? null)),
+    quality: 'complete' as const,
+  }))
 }
 
 export const replayGateway: DashboardGateway = {
@@ -90,16 +102,11 @@ export const replayGateway: DashboardGateway = {
   async getSeries(metric, asOf, stationId) {
     const { bundles } = scope(asOf, stationId)
     const supported = metric === 'load' || metric === 'energy'
-    const series = (bundle: ReplayBundle) => metric === 'energy' ? (bundle.energy || bundle.history) : bundle.history
     return {
       metric,
       unit: metric === 'energy' ? 'kWh' : 'kW',
       meta: meta(asOf),
-      points: series(bundles[0]!).map((p, i) => ({
-        time: p.time,
-        value: supported ? sumPoints(bundles.map(b => series(b)[i]?.value ?? null)) : null,
-        quality: supported ? 'complete' : 'unavailable',
-      })),
+      points: supported ? sumSeriesByTime(bundles, metric) : [],
     }
   },
   async getPrediction(hours, asOf, stationId) {
@@ -146,6 +153,9 @@ export const replayGateway: DashboardGateway = {
   },
   async getWeather() { return [] },
   async getWeatherImpact() { return [] },
-  async getModelMetrics() { throw new Error('MODEL_METRICS_NOT_PUBLISHED') },
+  async getModelMetrics() {
+    if (!replayInfo.modelEvaluation) throw new Error('MODEL_METRICS_NOT_PUBLISHED')
+    return { ...replayInfo.modelEvaluation, meta: meta(useDashboardStore().state.asOf) }
+  },
   async getPipeline() { throw new Error('PIPELINE_NOT_PUBLISHED') },
 }
